@@ -1,0 +1,1912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#4A90E2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="学习打卡">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>学习打卡工作台 - 遗忘曲线</title>
+<style>
+/* ===== CSS Variables & Reset ===== */
+:root {
+  --primary: #4A90E2;
+  --primary-dark: #357ABD;
+  --primary-light: #E8F2FC;
+  --primary-glow: rgba(74,144,226,0.15);
+  --accent-purple: #7C5CFC;
+  --accent-coral: #FF6B6B;
+  --accent-amber: #FFB347;
+  --accent-teal: #4ECDC4;
+  --accent-pink: #FF6B9D;
+  --bg: #F2F5FA;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #FFFFFF;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --border: #E8ECF1;
+  --border-light: #F1F5F9;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+  --sidebar-width: 240px;
+  --sidebar-collapsed: 0px;
+  --bottom-nav-height: 64px;
+  --top-bar-height: 60px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow: hidden;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== App Layout ===== */
+.app-container {
+  display: flex;
+  height: 100vh;
+  position: relative;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition);
+  overflow: hidden;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+.sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  border-right: none;
+}
+
+.sidebar-header {
+  padding: 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-light);
+}
+.sidebar-logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.sidebar-title {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 8px;
+  overflow-y: auto;
+}
+.sidebar-nav .nav-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 12px 4px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  position: relative;
+  margin-bottom: 2px;
+}
+.nav-item:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.nav-item.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: var(--primary);
+  border-radius: 0 3px 3px 0;
+}
+.nav-item .nav-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.nav-item .nav-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-item .nav-count {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 22px;
+  text-align: center;
+}
+.nav-item .nav-delete {
+  opacity: 0;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all var(--transition);
+}
+.nav-item:hover .nav-delete { opacity: 0.6; }
+.nav-item .nav-delete:hover { opacity: 1; background: #FEE2E2; color: #EF4444; }
+
+.sidebar-footer {
+  padding: 12px 8px;
+  border-top: 1px solid var(--border-light);
+}
+.btn-add-nav {
+  width: 100%;
+  padding: 10px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-add-nav:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* ===== Sidebar Toggle ===== */
+.sidebar-toggle {
+  position: absolute;
+  left: calc(var(--sidebar-width) - 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px; height: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 101;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.sidebar-toggle:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.sidebar.collapsed ~ .sidebar-toggle {
+  left: 8px;
+}
+
+/* ===== Main Area ===== */
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ===== Top Bar ===== */
+.top-bar {
+  height: var(--top-bar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.top-bar-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.top-bar-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.btn-new-task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: 0 4px 15px rgba(74,144,226,0.35);
+}
+.btn-new-task:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(74,144,226,0.45);
+}
+.btn-new-task:active { transform: translateY(0); }
+.btn-new-task .icon { font-size: 18px; }
+
+/* ===== Content Area ===== */
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  padding-bottom: calc(var(--bottom-nav-height) + 20px);
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: var(--text-muted);
+}
+.empty-state .empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+.empty-state .empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.empty-state .empty-desc {
+  font-size: 14px;
+}
+
+/* ===== Task Cards ===== */
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.task-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+.task-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 100%;
+  background: linear-gradient(180deg, var(--primary), var(--accent-purple));
+}
+.task-card.overdue::after { background: linear-gradient(180deg, var(--accent-coral), #FF8A80); }
+.task-card.due-today::after { background: linear-gradient(180deg, var(--accent-amber), #FFD54F); }
+.task-card.completed-all::after { background: linear-gradient(180deg, var(--accent-teal), #80CBC4); }
+
+.task-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.task-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  margin-right: 8px;
+}
+.task-card-category {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.task-card-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.task-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.task-card-days {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.task-card-days.urgent { color: var(--accent-coral); }
+.task-card-days.normal { color: var(--accent-amber); }
+.task-card-days.safe { color: var(--accent-teal); }
+
+.task-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.progress-dots {
+  display: flex;
+  gap: 4px;
+}
+.progress-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all var(--transition);
+}
+.progress-dot.done { background: var(--accent-teal); }
+.progress-dot.current { background: var(--primary); animation: pulse-dot 1.5s infinite; }
+.progress-dot.overdue-dot { background: var(--accent-coral); }
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74,144,226,0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(74,144,226,0); }
+}
+
+/* ===== Section Titles ===== */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title .icon { font-size: 22px; }
+.section-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ===== Calendar View ===== */
+.calendar-container {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.calendar-month {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.calendar-nav-btns {
+  display: flex;
+  gap: 8px;
+}
+.calendar-nav-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.calendar-nav-btn:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.calendar-weekday {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.calendar-day:hover { background: var(--primary-light); }
+.calendar-day.other-month { color: var(--text-muted); opacity: 0.4; }
+.calendar-day.today {
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(74,144,226,0.3);
+}
+.calendar-day.has-tasks { font-weight: 700; }
+.calendar-day .task-badge {
+  position: absolute;
+  bottom: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--accent-coral);
+  color: white;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.calendar-day.today .task-badge {
+  background: rgba(255,255,255,0.35);
+}
+
+/* Day detail popover */
+.day-detail-panel {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--primary-light);
+  border-radius: var(--radius-md);
+  display: none;
+}
+.day-detail-panel.show { display: block; }
+.day-detail-title {
+  font-size: 15px; font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+.day-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.day-detail-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: white;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.day-detail-item .item-title { font-size: 14px; font-weight: 500; }
+.day-detail-item .item-status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.item-status.pending { background: #FFF3E0; color: #E65100; }
+.item-status.done { background: #E8F5E9; color: #2E7D32; }
+
+/* ===== Settings View ===== */
+.settings-section {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+.settings-section h3 {
+  font-size: 16px; font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-section h3 .icon { font-size: 20px; }
+.nav-item-settings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  border: 1px solid var(--border-light);
+}
+.nav-item-settings .nav-icon-input {
+  font-size: 20px;
+  width: 36px; text-align: center;
+}
+.nav-item-settings input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border var(--transition);
+}
+.nav-item-settings input:focus { border-color: var(--primary); }
+.nav-item-settings .btn-delete {
+  background: none; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 16px; padding: 4px 8px;
+  border-radius: 4px;
+  transition: all var(--transition);
+}
+.nav-item-settings .btn-delete:hover {
+  background: #FEE2E2; color: #EF4444;
+}
+
+/* ===== Bottom Nav ===== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  height: var(--bottom-nav-height);
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  z-index: 99;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.04);
+  transition: left var(--transition);
+}
+.sidebar.collapsed ~ .bottom-nav,
+.sidebar.collapsed ~ .main-area .bottom-nav { left: 0; }
+.bottom-nav-item {
+  flex: 1;
+  max-width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all var(--transition);
+  border: none;
+  background: none;
+  font-family: inherit;
+  position: relative;
+}
+.bottom-nav-item:hover { color: var(--text-secondary); }
+.bottom-nav-item.active { color: var(--primary); }
+.bottom-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 0 0 3px 3px;
+}
+.bottom-nav-icon { font-size: 22px; }
+.bottom-nav-label { font-size: 11px; font-weight: 600; }
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+  backdrop-filter: blur(2px);
+}
+.modal-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  width: 90%;
+  max-width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 28px;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(20px) scale(0.97);
+  transition: all var(--transition);
+}
+.modal-overlay.show .modal {
+  transform: translateY(0) scale(1);
+}
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+.modal-field {
+  margin-bottom: 16px;
+}
+.modal-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.modal-field input,
+.modal-field textarea,
+.modal-field select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border var(--transition);
+  background: var(--bg);
+}
+.modal-field input:focus,
+.modal-field textarea:focus,
+.modal-field select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.modal-field textarea { resize: vertical; min-height: 80px; }
+
+/* Review schedule in modal */
+.review-schedule {
+  margin-top: 16px;
+}
+.review-schedule h4 {
+  font-size: 14px; font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+.review-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  border: 1px solid var(--border-light);
+}
+.review-item .review-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.review-item .review-day {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 3px 10px;
+  border-radius: 8px;
+}
+.review-item .review-date {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.review-item .review-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 10px;
+}
+.review-status.todo { background: #FFF3E0; color: #E65100; }
+.review-status.done { background: #E8F5E9; color: #2E7D32; }
+.review-status.future { background: #F3E5F5; color: #7B1FA2; }
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+.btn {
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition);
+  font-family: inherit;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  color: white;
+  box-shadow: 0 4px 12px rgba(74,144,226,0.3);
+}
+.btn-primary:hover { box-shadow: 0 6px 16px rgba(74,144,226,0.4); transform: translateY(-1px); }
+.btn-secondary {
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--border-light); }
+.btn-danger {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+.btn-danger:hover { background: #FECACA; }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+
+/* ===== Check-in Button ===== */
+.btn-checkin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition);
+  font-family: inherit;
+}
+.btn-checkin.todo-btn {
+  background: linear-gradient(135deg, var(--accent-amber), #FF8A65);
+  color: white;
+  box-shadow: 0 3px 10px rgba(255,179,71,0.3);
+}
+.btn-checkin.todo-btn:hover {
+  transform: scale(1.03);
+  box-shadow: 0 5px 15px rgba(255,179,71,0.4);
+}
+.btn-checkin.done-btn {
+  background: #E8F5E9;
+  color: #2E7D32;
+  cursor: default;
+}
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1E293B;
+  color: white;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-lg);
+}
+.toast.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 150; }
+  .sidebar.collapsed { left: calc(-1 * var(--sidebar-width)); width: var(--sidebar-width); min-width: var(--sidebar-width); }
+  .task-grid { grid-template-columns: 1fr; }
+  .content-area { padding: 16px 12px; }
+}
+
+/* ===== Confetti ===== */
+.confetti-piece {
+  position: fixed;
+  z-index: 350;
+  pointer-events: none;
+  animation: confetti-fall 1.5s ease-out forwards;
+}
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translateY(80vh) rotate(720deg) scale(0); }
+}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🧠</div>
+      <span class="sidebar-title">学习打卡</span>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <div class="nav-section-title">分类</div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-add-nav" onclick="addNavItem()">+ 新建导航</button>
+    </div>
+  </aside>
+
+  <!-- Sidebar Toggle -->
+  <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="折叠侧边栏">◀</button>
+
+  <!-- Main Area -->
+  <div class="main-area">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <span class="top-bar-title" id="topBarTitle">今日任务</span>
+        <span class="top-bar-subtitle" id="topBarSubtitle"></span>
+      </div>
+      <button class="btn-new-task" onclick="openNewTaskModal()">
+        <span class="icon">＋</span> 新建任务
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="content-area" id="contentArea"></div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="bottom-nav-item active" data-view="today" onclick="switchView('today')">
+      <span class="bottom-nav-icon">📋</span>
+      <span class="bottom-nav-label">今日任务</span>
+    </button>
+    <button class="bottom-nav-item" data-view="calendar" onclick="switchView('calendar')">
+      <span class="bottom-nav-icon">📅</span>
+      <span class="bottom-nav-label">日历</span>
+    </button>
+    <button class="bottom-nav-item" data-view="settings" onclick="switchView('settings')">
+      <span class="bottom-nav-icon">⚙️</span>
+      <span class="bottom-nav-label">设置</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Modal Overlay -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modalContent" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== DATA MANAGEMENT =====
+const STORAGE_KEY = 'study-workbench-v2';
+const REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30, 60, 180];
+const DEFAULT_NAV = [
+  { id: 'all', label: '全部任务', icon: '📋', builtin: true },
+  { id: 'cat-neike', label: '内科', icon: '🫀', builtin: true },
+  { id: 'cat-waike', label: '外科', icon: '🔪', builtin: true },
+  { id: 'cat-shengli', label: '生理', icon: '🧬', builtin: true },
+  { id: 'cat-bingli', label: '病理', icon: '🔬', builtin: true },
+  { id: 'cat-shenghua', label: '生化', icon: '🧪', builtin: true },
+];
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return getDefaultData();
+}
+
+function getDefaultData() {
+  return {
+    tasks: [],
+    navItems: JSON.parse(JSON.stringify(DEFAULT_NAV)),
+    activeView: 'today',
+    activeNavFilter: 'all',
+    sidebarCollapsed: false,
+  };
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+let appData = loadData();
+if (!appData.navItems || !appData.navItems.length) {
+  appData.navItems = JSON.parse(JSON.stringify(DEFAULT_NAV));
+}
+
+// ===== HELPERS =====
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function daysBetween(d1, d2) {
+  const a = new Date(d1 + 'T00:00:00');
+  const b = new Date(d2 + 'T00:00:00');
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth()+1}月${d.getDate()}日`;
+}
+
+function generateId() {
+  return 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+}
+
+// ===== FORGETTING CURVE LOGIC =====
+function getReviewSchedule(startDate) {
+  return REVIEW_INTERVALS.map(day => ({
+    day,
+    date: addDays(startDate, day),
+    completed: false
+  }));
+}
+
+function getNextReview(task) {
+  const today = todayStr();
+  for (const r of task.reviews) {
+    if (!r.completed) return r;
+  }
+  return null; // all completed
+}
+
+function getTaskDueStatus(task) {
+  const today = todayStr();
+  const nextReview = getNextReview(task);
+  if (!nextReview) return { status: 'completed-all', label: '全部完成 🎉', days: 0 };
+  const diff = daysBetween(today, nextReview.date);
+  if (diff < 0) return { status: 'overdue', label: `已逾期 ${Math.abs(diff)} 天`, days: diff };
+  if (diff === 0) return { status: 'due-today', label: '今天需要复习', days: 0 };
+  return { status: 'upcoming', label: `距离下次复习还有 ${diff} 天`, days: diff };
+}
+
+function getCompletedCount(task) {
+  return task.reviews.filter(r => r.completed).length;
+}
+
+function getReviewDueOnDate(task, dateStr) {
+  for (const r of task.reviews) {
+    if (r.date === dateStr && !r.completed) return r;
+  }
+  return null;
+}
+
+function getTasksDueOnDate(dateStr) {
+  return appData.tasks.filter(t => getReviewDueOnDate(t, dateStr) !== null);
+}
+
+function getTasksDueToday() {
+  const today = todayStr();
+  return appData.tasks.filter(t => {
+    const nextReview = getNextReview(t);
+    if (!nextReview) return false;
+    return nextReview.date <= today;
+  });
+}
+
+// ===== UI: SIDEBAR =====
+function renderSidebar() {
+  const nav = document.getElementById('sidebarNav');
+  const filter = appData.activeNavFilter;
+  
+  let html = '<div class="nav-section-title">分类</div>';
+  
+  appData.navItems.forEach(item => {
+    const count = item.id === 'all'
+      ? appData.tasks.length
+      : appData.tasks.filter(t => t.category === item.id).length;
+    const isActive = filter === item.id;
+    const isBuiltin = item.builtin;
+    html += `
+      <div class="nav-item ${isActive ? 'active' : ''}" onclick="setNavFilter('${item.id}')">
+        <span class="nav-icon">${item.icon}</span>
+        <span class="nav-label">${escapeHtml(item.label)}</span>
+        <span class="nav-count">${count}</span>
+        ${!isBuiltin ? `<span class="nav-delete" onclick="event.stopPropagation();deleteNavItem('${item.id}')">✕</span>` : ''}
+      </div>`;
+  });
+  
+  nav.innerHTML = html;
+}
+
+function setNavFilter(id) {
+  appData.activeNavFilter = id;
+  saveData(appData);
+  renderSidebar();
+  renderContent();
+}
+
+function addNavItem() {
+  const label = prompt('请输入导航名称：');
+  if (!label || !label.trim()) return;
+  const icons = ['📖','📝','🎯','💡','🔬','🎨','🎵','🏃','💻','🌍','📊','🔧','⭐','🔥','❤️','🍀'];
+  const icon = icons[Math.floor(Math.random() * icons.length)];
+  appData.navItems.push({
+    id: 'cat-' + Date.now(),
+    label: label.trim(),
+    icon,
+    builtin: false
+  });
+  saveData(appData);
+  renderSidebar();
+  showToast('导航已添加');
+}
+
+function deleteNavItem(id) {
+  if (!confirm('确定删除此导航？相关任务将移至"全部任务"。')) return;
+  appData.navItems = appData.navItems.filter(item => item.id !== id);
+  // Move tasks in this category to uncategorized
+  appData.tasks.forEach(t => {
+    if (t.category === id) t.category = 'all';
+  });
+  if (appData.activeNavFilter === id) appData.activeNavFilter = 'all';
+  saveData(appData);
+  renderSidebar();
+  renderContent();
+  showToast('导航已删除');
+}
+
+// ===== UI: SIDEBAR TOGGLE =====
+function toggleSidebar() {
+  appData.sidebarCollapsed = !appData.sidebarCollapsed;
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.getElementById('sidebarToggle');
+  if (appData.sidebarCollapsed) {
+    sidebar.classList.add('collapsed');
+    toggle.innerHTML = '▶';
+    toggle.title = '展开侧边栏';
+    document.querySelector('.bottom-nav').style.left = '0';
+  } else {
+    sidebar.classList.remove('collapsed');
+    toggle.innerHTML = '◀';
+    toggle.title = '折叠侧边栏';
+    document.querySelector('.bottom-nav').style.left = 'var(--sidebar-width)';
+  }
+  saveData(appData);
+}
+
+// ===== UI: BOTTOM NAV =====
+function switchView(view) {
+  appData.activeView = view;
+  saveData(appData);
+  
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+  
+  const titles = { today: '今日任务', calendar: '日历', settings: '设置' };
+  document.getElementById('topBarTitle').textContent = titles[view] || view;
+  document.getElementById('topBarSubtitle').textContent = '';
+  
+  renderContent();
+}
+
+// ===== UI: CONTENT RENDERING =====
+function renderContent() {
+  const area = document.getElementById('contentArea');
+  const view = appData.activeView;
+  
+  switch(view) {
+    case 'today': renderTodayView(area); break;
+    case 'calendar': renderCalendarView(area); break;
+    case 'settings': renderSettingsView(area); break;
+    default: renderTodayView(area);
+  }
+}
+
+// ===== TODAY VIEW =====
+function renderTodayView(container) {
+  let tasks = appData.tasks;
+  const filter = appData.activeNavFilter;
+  
+  if (filter !== 'all') {
+    tasks = tasks.filter(t => t.category === filter);
+  }
+  
+  if (tasks.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <div class="empty-title">还没有任务</div>
+        <div class="empty-desc">点击右上角「新建任务」开始你的学习之旅吧</div>
+      </div>`;
+    return;
+  }
+  
+  // Sort: overdue first, then due today, then upcoming
+  const today = todayStr();
+  tasks = [...tasks].sort((a, b) => {
+    const sa = getTaskDueStatus(a);
+    const sb = getTaskDueStatus(b);
+    const order = { 'overdue': 0, 'due-today': 1, 'upcoming': 2, 'completed-all': 3 };
+    return (order[sa.status] ?? 4) - (order[sb.status] ?? 4);
+  });
+  
+  const dueTodayTasks = tasks.filter(t => {
+    const nr = getNextReview(t);
+    return nr && nr.date <= today;
+  });
+  const upcomingTasks = tasks.filter(t => {
+    const nr = getNextReview(t);
+    return nr && nr.date > today;
+  });
+  const completedTasks = tasks.filter(t => !getNextReview(t));
+  
+  let html = '';
+  
+  if (dueTodayTasks.length > 0) {
+    html += `<div class="section-header">
+      <div class="section-title"><span class="icon">🔥</span> 待复习</div>
+      <span class="section-count">${dueTodayTasks.length} 项</span>
+    </div>`;
+    html += '<div class="task-grid">';
+    dueTodayTasks.forEach(t => html += renderTaskCard(t));
+    html += '</div>';
+  }
+  
+  if (upcomingTasks.length > 0) {
+    html += `<div class="section-header" style="margin-top:24px">
+      <div class="section-title"><span class="icon">📌</span> 即将到来</div>
+      <span class="section-count">${upcomingTasks.length} 项</span>
+    </div>`;
+    html += '<div class="task-grid">';
+    upcomingTasks.forEach(t => html += renderTaskCard(t));
+    html += '</div>';
+  }
+  
+  if (completedTasks.length > 0) {
+    html += `<div class="section-header" style="margin-top:24px">
+      <div class="section-title"><span class="icon">✅</span> 已完成</div>
+      <span class="section-count">${completedTasks.length} 项</span>
+    </div>`;
+    html += '<div class="task-grid">';
+    completedTasks.forEach(t => html += renderTaskCard(t));
+    html += '</div>';
+  }
+  
+  if (!html) {
+    html = `<div class="empty-state">
+      <div class="empty-icon">🎉</div>
+      <div class="empty-title">太棒了！</div>
+      <div class="empty-desc">当前分类下暂无任务</div>
+    </div>`;
+  }
+  
+  container.innerHTML = html;
+}
+
+function renderTaskCard(task) {
+  const dueStatus = getTaskDueStatus(task);
+  const completedCount = getCompletedCount(task);
+  const totalCount = REVIEW_INTERVALS.length;
+  const categoryItem = appData.navItems.find(n => n.id === task.category);
+  const categoryLabel = categoryItem ? categoryItem.label : '未分类';
+  
+  let cardClass = '';
+  if (dueStatus.status === 'overdue') cardClass = 'overdue';
+  else if (dueStatus.status === 'due-today') cardClass = 'due-today';
+  else if (dueStatus.status === 'completed-all') cardClass = 'completed-all';
+  
+  let daysClass = 'safe';
+  if (dueStatus.status === 'overdue' || dueStatus.status === 'due-today') daysClass = 'urgent';
+  else if (dueStatus.days > 0 && dueStatus.days <= 3) daysClass = 'normal';
+  
+  const hasReviewToday = dueStatus.status === 'due-today' || dueStatus.status === 'overdue';
+  
+  // Progress dots
+  let dotsHtml = '';
+  task.reviews.forEach(r => {
+    let dotClass = '';
+    if (r.completed) dotClass = 'done';
+    else if (r.date <= todayStr() && !r.completed) dotClass = 'overdue-dot';
+    else if (r === getNextReview(task)) dotClass = 'current';
+    dotsHtml += `<span class="progress-dot ${dotClass}"></span>`;
+  });
+  
+  return `
+    <div class="task-card ${cardClass}" onclick="openTaskDetail('${task.id}')">
+      <div class="task-card-header">
+        <span class="task-card-title">${escapeHtml(task.title)}</span>
+        <span class="task-card-category">${categoryLabel}</span>
+      </div>
+      ${task.content ? `<div class="task-card-content">${escapeHtml(task.content)}</div>` : ''}
+      <div class="task-card-meta">
+        <div class="task-card-days ${daysClass}">
+          ${dueStatus.status === 'overdue' ? '⚠️' : dueStatus.status === 'due-today' ? '🔔' : dueStatus.status === 'completed-all' ? '✅' : '📅'}
+          ${dueStatus.label}
+        </div>
+        <div class="task-card-progress">
+          <div class="progress-dots">${dotsHtml}</div>
+          <span>${completedCount}/${totalCount}</span>
+        </div>
+      </div>
+      ${hasReviewToday ? `
+        <div style="margin-top:12px;">
+          <button class="btn-checkin todo-btn" onclick="event.stopPropagation();checkinToday('${task.id}')">
+            ✅ 打卡完成
+          </button>
+        </div>` : ''}
+    </div>`;
+}
+
+// ===== CHECK-IN =====
+function checkinToday(taskId) {
+  const task = appData.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  const today = todayStr();
+  
+  // Find the earliest uncompleted review due on or before today
+  let targetReview = null;
+  for (const r of task.reviews) {
+    if (!r.completed && r.date <= today) {
+      targetReview = r;
+      break;
+    }
+  }
+  
+  if (!targetReview) {
+    showToast('当前没有需要打卡的复习任务');
+    return;
+  }
+  
+  targetReview.completed = true;
+  saveData(appData);
+  showConfetti();
+  showToast(`🎉 第 ${targetReview.day} 天复习打卡成功！`);
+  renderContent();
+  renderSidebar();
+}
+
+// ===== TASK DETAIL MODAL =====
+function openTaskDetail(taskId) {
+  const task = appData.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  
+  const today = todayStr();
+  const categoryItem = appData.navItems.find(n => n.id === task.category);
+  
+  let scheduleHtml = task.reviews.map(r => {
+    const isToday = r.date === today;
+    const isPast = r.date < today;
+    let statusClass = 'future';
+    let statusText = '待复习';
+    if (r.completed) { statusClass = 'done'; statusText = '已完成'; }
+    else if (isPast) { statusClass = 'todo'; statusText = '待打卡'; }
+    else if (isToday) { statusClass = 'todo'; statusText = '今天'; }
+    
+    const canCheckin = !r.completed && r.date <= today;
+    
+    return `
+      <div class="review-item">
+        <div class="review-info">
+          <span class="review-day">第 ${r.day} 天</span>
+          <span class="review-date">${formatDate(r.date)} ${isToday ? '(今天)' : ''}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="review-status ${statusClass}">${statusText}</span>
+          ${canCheckin ? `<button class="btn btn-sm btn-primary" onclick="checkinReview('${task.id}', ${r.day})">打卡</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+  
+  const modal = document.getElementById('modalContent');
+  modal.innerHTML = `
+    <div class="modal-title">📝 任务详情</div>
+    <div class="modal-field">
+      <label>任务标题</label>
+      <input type="text" id="editTitle" value="${escapeHtml(task.title)}">
+    </div>
+    <div class="modal-field">
+      <label>分类</label>
+      <select id="editCategory">
+        ${appData.navItems.map(n => `<option value="${n.id}" ${task.category === n.id ? 'selected' : ''}>${n.icon} ${n.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>学习内容 / 笔记</label>
+      <textarea id="editContent" placeholder="记录你的学习内容...">${escapeHtml(task.content || '')}</textarea>
+    </div>
+    <div class="modal-field">
+      <label>开始日期</label>
+      <input type="date" id="editStartDate" value="${task.startDate}">
+    </div>
+    <div class="review-schedule">
+      <h4>📅 复习计划</h4>
+      ${scheduleHtml}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="deleteTask('${task.id}')">删除任务</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-secondary" onclick="closeModalDirect()">取消</button>
+      <button class="btn btn-primary" onclick="saveTaskDetail('${task.id}')">保存</button>
+    </div>
+  `;
+  
+  openModal();
+}
+
+function checkinReview(taskId, reviewDay) {
+  const task = appData.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  const review = task.reviews.find(r => r.day === reviewDay);
+  if (!review || review.completed) return;
+  review.completed = true;
+  saveData(appData);
+  openTaskDetail(taskId); // refresh
+  renderContent();
+  renderSidebar();
+  showConfetti();
+  showToast(`🎉 第 ${reviewDay} 天复习打卡成功！`);
+}
+
+function saveTaskDetail(taskId) {
+  const task = appData.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  
+  const newTitle = document.getElementById('editTitle').value.trim();
+  const newContent = document.getElementById('editContent').value.trim();
+  const newCategory = document.getElementById('editCategory').value;
+  const newStartDate = document.getElementById('editStartDate').value;
+  
+  if (!newTitle) { showToast('请输入任务标题'); return; }
+  
+  const oldStartDate = task.startDate;
+  task.title = newTitle;
+  task.content = newContent;
+  task.category = newCategory;
+  
+  // If start date changed, recalculate review dates while preserving completed status
+  if (newStartDate !== oldStartDate) {
+    task.startDate = newStartDate;
+    const oldReviews = [...task.reviews];
+    task.reviews = REVIEW_INTERVALS.map(day => {
+      const oldReview = oldReviews.find(r => r.day === day);
+      return {
+        day,
+        date: addDays(newStartDate, day),
+        completed: oldReview ? oldReview.completed : false
+      };
+    });
+  }
+  
+  saveData(appData);
+  closeModalDirect();
+  renderContent();
+  renderSidebar();
+  showToast('任务已保存');
+}
+
+function deleteTask(taskId) {
+  if (!confirm('确定删除此任务？此操作不可恢复。')) return;
+  appData.tasks = appData.tasks.filter(t => t.id !== taskId);
+  saveData(appData);
+  closeModalDirect();
+  renderContent();
+  renderSidebar();
+  showToast('任务已删除');
+}
+
+// ===== NEW TASK MODAL =====
+function openNewTaskModal() {
+  const modal = document.getElementById('modalContent');
+  const defaultCategory = appData.activeNavFilter !== 'all' ? appData.activeNavFilter : 'cat-neike';
+  
+  modal.innerHTML = `
+    <div class="modal-title">✨ 新建学习任务</div>
+    <div class="modal-field">
+      <label>任务标题 *</label>
+      <input type="text" id="newTitle" placeholder="例如：背英语单词Unit 5">
+    </div>
+    <div class="modal-field">
+      <label>分类</label>
+      <select id="newCategory">
+        ${appData.navItems.map(n => `<option value="${n.id}" ${n.id === defaultCategory ? 'selected' : ''}>${n.icon} ${n.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>学习内容 / 笔记</label>
+      <textarea id="newContent" placeholder="记录学习要点，方便复习时查看..."></textarea>
+    </div>
+    <div class="modal-field">
+      <label>开始日期 *</label>
+      <input type="date" id="newStartDate" value="${todayStr()}">
+    </div>
+    <div style="padding:12px;background:var(--primary-light);border-radius:var(--radius-sm);margin-bottom:8px;font-size:13px;color:var(--text-secondary);">
+      💡 基于艾宾浩斯遗忘曲线，任务将在第 <b>1、2、4、7、15、30、60、180</b> 天自动安排复习打卡
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModalDirect()">取消</button>
+      <button class="btn btn-primary" onclick="createTask()">创建任务</button>
+    </div>
+  `;
+  
+  openModal();
+  setTimeout(() => document.getElementById('newTitle')?.focus(), 200);
+}
+
+function createTask() {
+  const title = document.getElementById('newTitle').value.trim();
+  const content = document.getElementById('newContent').value.trim();
+  const category = document.getElementById('newCategory').value;
+  const startDate = document.getElementById('newStartDate').value;
+  
+  if (!title) { showToast('请输入任务标题'); return; }
+  if (!startDate) { showToast('请选择开始日期'); return; }
+  
+  const task = {
+    id: generateId(),
+    title,
+    content,
+    category,
+    startDate,
+    reviews: getReviewSchedule(startDate),
+    createdAt: Date.now()
+  };
+  
+  appData.tasks.push(task);
+  saveData(appData);
+  closeModalDirect();
+  
+  // Switch to today view to see the new task
+  if (appData.activeView !== 'today') switchView('today');
+  else renderContent();
+  renderSidebar();
+  showConfetti();
+  showToast('🎉 任务创建成功！按遗忘曲线自动安排复习');
+}
+
+// ===== CALENDAR VIEW =====
+let calendarYear, calendarMonth, selectedCalendarDay;
+
+function renderCalendarView(container) {
+  const now = new Date();
+  if (!calendarYear) { calendarYear = now.getFullYear(); calendarMonth = now.getMonth(); }
+  
+  const firstDay = new Date(calendarYear, calendarMonth, 1);
+  const lastDay = new Date(calendarYear, calendarMonth + 1, 0);
+  const startDayOfWeek = firstDay.getDay();
+  const daysInMonth = lastDay.getDate();
+  const today = todayStr();
+  
+  // Build task count map
+  const taskCountMap = {};
+  const firstDate = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-01`;
+  const lastDate = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
+  
+  appData.tasks.forEach(task => {
+    task.reviews.forEach(r => {
+      if (!r.completed && r.date >= firstDate && r.date <= lastDate) {
+        taskCountMap[r.date] = (taskCountMap[r.date] || 0) + 1;
+      }
+    });
+  });
+  
+  const weekdays = ['日','一','二','三','四','五','六'];
+  
+  let daysHtml = '';
+  
+  // Previous month padding
+  for (let i = 0; i < startDayOfWeek; i++) {
+    const d = new Date(calendarYear, calendarMonth, -startDayOfWeek + i + 1);
+    daysHtml += `<div class="calendar-day other-month">${d.getDate()}</div>`;
+  }
+  
+  // Current month days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const isToday = dateStr === today;
+    const count = taskCountMap[dateStr] || 0;
+    
+    let classes = 'calendar-day';
+    if (isToday) classes += ' today';
+    if (count > 0) classes += ' has-tasks';
+    
+    daysHtml += `
+      <div class="${classes}" onclick="selectCalendarDay('${dateStr}')" data-date="${dateStr}">
+        ${day}
+        ${count > 0 ? `<span class="task-badge">${count}</span>` : ''}
+      </div>`;
+  }
+  
+  // Next month padding
+  const remaining = 7 - ((startDayOfWeek + daysInMonth) % 7);
+  if (remaining < 7) {
+    for (let i = 1; i <= remaining; i++) {
+      daysHtml += `<div class="calendar-day other-month">${i}</div>`;
+    }
+  }
+  
+  container.innerHTML = `
+    <div class="calendar-container">
+      <div class="calendar-header">
+        <button class="calendar-nav-btn" onclick="navigateCalendar(-1)">◀</button>
+        <span class="calendar-month">${calendarYear}年 ${calendarMonth + 1}月</span>
+        <button class="calendar-nav-btn" onclick="navigateCalendar(1)">▶</button>
+      </div>
+      <div class="calendar-weekdays">
+        ${weekdays.map(w => `<div class="calendar-weekday">${w}</div>`).join('')}
+      </div>
+      <div class="calendar-days">${daysHtml}</div>
+      <div class="day-detail-panel" id="dayDetailPanel">
+        <div class="day-detail-title" id="dayDetailTitle"></div>
+        <div class="day-detail-list" id="dayDetailList"></div>
+      </div>
+    </div>
+  `;
+  
+  // Restore selected day
+  if (selectedCalendarDay) {
+    selectCalendarDay(selectedCalendarDay);
+  }
+  
+  // Highlight selected
+  const selectedEl = container.querySelector(`[data-date="${selectedCalendarDay}"]`);
+  if (selectedEl) selectedEl.style.boxShadow = '0 0 0 2px var(--primary)';
+}
+
+function navigateCalendar(dir) {
+  calendarMonth += dir;
+  if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+  if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+  selectedCalendarDay = null;
+  renderContent();
+}
+
+function selectCalendarDay(dateStr) {
+  selectedCalendarDay = dateStr;
+  const tasks = getTasksDueOnDate(dateStr);
+  const panel = document.getElementById('dayDetailPanel');
+  const title = document.getElementById('dayDetailTitle');
+  const list = document.getElementById('dayDetailList');
+  
+  if (!panel) return;
+  
+  title.textContent = `${formatDate(dateStr)} — ${tasks.length} 个任务需要复习`;
+  
+  if (tasks.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);">这天没有待复习的任务 ✨</div>';
+  } else {
+    list.innerHTML = tasks.map(t => {
+      const review = getReviewDueOnDate(t, dateStr);
+      return `
+        <div class="day-detail-item" style="cursor:pointer;" onclick="openTaskDetail('${t.id}')">
+          <span class="item-title">${escapeHtml(t.title)}</span>
+          <span class="item-status ${review && review.completed ? 'done' : 'pending'}">${review && review.completed ? '已完成' : '待打卡'}</span>
+        </div>`;
+    }).join('');
+  }
+  
+  panel.classList.add('show');
+  
+  // Update selected UI
+  document.querySelectorAll('.calendar-day').forEach(el => {
+    el.style.boxShadow = '';
+    el.style.background = '';
+  });
+  const selectedEl = document.querySelector(`[data-date="${dateStr}"]`);
+  if (selectedEl) {
+    selectedEl.style.boxShadow = '0 0 0 2px var(--primary)';
+    if (!selectedEl.classList.contains('today')) {
+      selectedEl.style.background = 'var(--primary-light)';
+    }
+  }
+}
+
+// ===== SETTINGS VIEW =====
+function renderSettingsView(container) {
+  const customItems = appData.navItems.filter(n => !n.builtin);
+  
+  let navSettingsHtml = customItems.map(item => `
+    <div class="nav-item-settings">
+      <span class="nav-icon-input">${item.icon}</span>
+      <input type="text" value="${escapeHtml(item.label)}" onchange="updateNavItemLabel('${item.id}', this.value)" placeholder="导航名称">
+      <input type="text" value="${item.icon}" style="width:50px;text-align:center;" onchange="updateNavItemIcon('${item.id}', this.value)" placeholder="图标">
+      <button class="btn-delete" onclick="deleteNavItem('${item.id}');renderContent();">🗑</button>
+    </div>
+  `).join('');
+  
+  if (!navSettingsHtml) {
+    navSettingsHtml = '<div style="color:var(--text-muted);font-size:14px;padding:8px 0;">暂无自定义导航，点击左侧「+ 新建导航」添加</div>';
+  }
+  
+  const totalReviews = appData.tasks.reduce((sum, t) => sum + t.reviews.length, 0);
+  const completedReviews = appData.tasks.reduce((sum, t) => sum + getCompletedCount(t), 0);
+  const completionRate = totalReviews > 0 ? Math.round((completedReviews / totalReviews) * 100) : 0;
+  
+  container.innerHTML = `
+    <div class="settings-section">
+      <h3><span class="icon">📊</span> 学习统计</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div style="text-align:center;padding:16px;background:var(--primary-light);border-radius:var(--radius-md);">
+          <div style="font-size:28px;font-weight:700;color:var(--primary);">${appData.tasks.length}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">总任务数</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:#FFF3E0;border-radius:var(--radius-md);">
+          <div style="font-size:28px;font-weight:700;color:#E65100;">${completedReviews}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">已打卡</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:#E8F5E9;border-radius:var(--radius-md);">
+          <div style="font-size:28px;font-weight:700;color:#2E7D32;">${completionRate}%</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">完成率</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h3><span class="icon">🧭</span> 自定义导航</h3>
+      ${navSettingsHtml}
+      <button class="btn btn-secondary" style="margin-top:12px;width:100%;" onclick="addNavItem();renderContent();">+ 新建导航</button>
+    </div>
+    
+    <div class="settings-section">
+      <h3><span class="icon">📖</span> 遗忘曲线说明</h3>
+      <div style="font-size:14px;color:var(--text-secondary);line-height:1.8;">
+        <p>基于<b>艾宾浩斯遗忘曲线</b>，系统将在以下时间节点自动安排复习：</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          ${REVIEW_INTERVALS.map((d, i) => `
+            <span style="padding:8px 16px;background:var(--primary-light);border-radius:20px;font-weight:600;color:var(--primary);font-size:13px;">
+              第 ${d} 天
+            </span>
+          `).join('')}
+        </div>
+        <p style="margin-top:10px;">每次打卡后，系统会自动计算下一次复习时间，帮助你科学记忆。</p>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h3><span class="icon">🗑</span> 数据管理</h3>
+      <button class="btn btn-danger" onclick="resetAllData()">重置所有数据</button>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:10px;">此操作不可恢复</span>
+    </div>
+  `;
+}
+
+function updateNavItemLabel(id, newLabel) {
+  const item = appData.navItems.find(n => n.id === id);
+  if (item && newLabel.trim()) {
+    item.label = newLabel.trim();
+    saveData(appData);
+    renderSidebar();
+  }
+}
+
+function updateNavItemIcon(id, newIcon) {
+  const item = appData.navItems.find(n => n.id === id);
+  if (item && newIcon.trim()) {
+    item.icon = newIcon.trim();
+    saveData(appData);
+    renderSidebar();
+  }
+}
+
+function resetAllData() {
+  if (!confirm('确定要删除所有数据吗？此操作不可恢复！')) return;
+  if (!confirm('再次确认：所有任务和自定义导航将被永久删除！')) return;
+  appData = getDefaultData();
+  localStorage.removeItem(STORAGE_KEY);
+  calendarYear = null;
+  calendarMonth = null;
+  selectedCalendarDay = null;
+  renderSidebar();
+  renderContent();
+  document.getElementById('topBarTitle').textContent = '今日任务';
+  showToast('所有数据已重置');
+}
+
+// ===== MODAL =====
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function closeModal(e) {
+  if (e.target === e.currentTarget) {
+    document.getElementById('modalOverlay').classList.remove('show');
+  }
+}
+
+// ===== TOAST =====
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ===== CONFETTI =====
+function showConfetti() {
+  const colors = ['#FF6B6B','#4ECDC4','#FFB347','#7C5CFC','#4A90E2','#FF6B9D','#45B7D1','#96CEB4'];
+  for (let i = 0; i < 30; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.top = -(Math.random() * 40) + 'px';
+    piece.style.width = (Math.random() * 8 + 4) + 'px';
+    piece.style.height = (Math.random() * 8 + 4) + 'px';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    piece.style.animationDelay = Math.random() * 0.5 + 's';
+    piece.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
+    document.body.appendChild(piece);
+    setTimeout(() => piece.remove(), 2500);
+  }
+}
+
+// ===== UTILS =====
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ===== KEYBOARD SHORTCUT =====
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModalDirect();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    e.preventDefault();
+    openNewTaskModal();
+  }
+});
+
+// ===== INIT =====
+function init() {
+  // Restore sidebar state
+  if (appData.sidebarCollapsed) {
+    document.getElementById('sidebar').classList.add('collapsed');
+    document.getElementById('sidebarToggle').innerHTML = '▶';
+    document.getElementById('sidebarToggle').title = '展开侧边栏';
+    document.querySelector('.bottom-nav').style.left = '0';
+  }
+  
+  renderSidebar();
+  
+  // Restore view
+  const view = appData.activeView || 'today';
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+  document.getElementById('topBarTitle').textContent = 
+    { today: '今日任务', calendar: '日历', settings: '设置' }[view] || '今日任务';
+  
+  renderContent();
+}
+
+init();
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    console.log('SW registered:', reg.scope);
+    // 检测到新 SW 就绪时自动刷新页面
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') {
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(err => {
+    console.log('SW registration failed:', err);
+  });
+  // 接收 SW 发来的更新消息
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SW_UPDATED') {
+      window.location.reload();
+    }
+  });
+}
+</script>
+
+</body>
+</html>
