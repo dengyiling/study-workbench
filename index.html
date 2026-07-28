@@ -1029,6 +1029,8 @@ const STORAGE_KEY = 'study-workbench-v2';
 const CLOUD_KEY = 'study-workbench-cloud-sync';
 const GITHUB_REPO = 'dengyiling/study-workbench';
 const CLOUD_FILE = 'data.json';
+// 公开仓库的 raw URL，读取数据不需要 Token
+const CLOUD_RAW_URL = 'https://raw.githubusercontent.com/dengyiling/study-workbench/main/data.json';
 const REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30, 60, 180];
 const DEFAULT_NAV = [
   { id: 'all', label: '全部任务', icon: '📋', builtin: true },
@@ -1071,8 +1073,12 @@ function saveData(data) {
 // ===== CLOUD SYNC =====
 function getCloudConfig() {
   try {
-    return JSON.parse(localStorage.getItem(CLOUD_KEY) || '{"enabled":false,"token":"","lastSync":0}');
-  } catch(e) { return { enabled: false, token: '', lastSync: 0 }; }
+    const cfg = JSON.parse(localStorage.getItem(CLOUD_KEY) || '{}');
+    if (cfg.enabled === undefined) cfg.enabled = true; // 默认开启同步
+    if (!cfg.token) cfg.token = '';
+    if (!cfg.lastSync) cfg.lastSync = 0;
+    return cfg;
+  } catch(e) { return { enabled: true, token: '', lastSync: 0 }; }
 }
 
 function saveCloudConfig(cfg) {
@@ -1096,10 +1102,16 @@ function updateSyncStatus(status) {
 
 async function pushToCloud() {
   const cfg = getCloudConfig();
-  if (!cfg.token) return;
+  if (!cfg.token) {
+    updateSyncStatus('error');
+    showToast('⚠️ 请在设置中填入 GitHub Token 以启用同步');
+    return;
+  }
   try {
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     if (!data.tasks) return;
+    // 把 Token 也存入云端备份（方便删除App后自动恢复Token）
+    data._syncToken = cfg.token;
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
     // Get existing sha
     let sha = '';
@@ -1131,25 +1143,39 @@ async function pushToCloud() {
 }
 
 async function pullFromCloud(silent) {
-  const cfg = getCloudConfig();
-  if (!cfg.token) return null;
   try {
-    const resp = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${CLOUD_FILE}`, {
-      headers: { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github+json' }
-    });
+    // 用 raw URL 读取，不需要 Token（公开仓库）
+    const resp = await fetch(CLOUD_RAW_URL + '?t=' + Date.now());
     if (!resp.ok) return null;
-    const j = await resp.json();
-    if (!j.content) return null;
-    const remoteData = JSON.parse(decodeURIComponent(escape(atob(j.content))));
+    const remoteData = await resp.json();
+    if (!remoteData.tasks) return null;
     const localData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     const remoteTime = remoteData._lastModified || 0;
     const localTime = localData._lastModified || 0;
 
     if (remoteTime > localTime) {
-      // Cloud is newer
+      // 如果本地数据为空（刚删除App重装），直接恢复，不弹确认框
+      const localTasks = (localData.tasks || []).length;
+      if (localTasks === 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteData));
+        const cfg = getCloudConfig();
+        cfg.lastSync = remoteTime;
+        // 从云端数据中恢复 Token
+        if (remoteData._syncToken) {
+          cfg.token = remoteData._syncToken;
+        }
+        saveCloudConfig(cfg);
+        updateSyncStatus('synced');
+        showToast('☁️ 已从云端恢复数据');
+        return remoteData;
+      }
       if (!silent && !confirm(`云端数据更新（${new Date(remoteTime).toLocaleString('zh-CN')}），是否拉取？\n\n将覆盖本地数据。`)) return null;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteData));
+      const cfg = getCloudConfig();
       cfg.lastSync = remoteTime;
+      if (remoteData._syncToken && !cfg.token) {
+        cfg.token = remoteData._syncToken;
+      }
       saveCloudConfig(cfg);
       updateSyncStatus('synced');
       return remoteData;
@@ -1157,6 +1183,7 @@ async function pullFromCloud(silent) {
       // Local is newer, push to cloud
       pushToCloud();
     }
+    const cfg = getCloudConfig();
     cfg.lastSync = Math.max(remoteTime, localTime);
     saveCloudConfig(cfg);
     updateSyncStatus('synced');
@@ -1165,17 +1192,22 @@ async function pullFromCloud(silent) {
 }
 
 function checkCloudOnStartup() {
-  const cfg = getCloudConfig();
-  if (cfg.enabled && cfg.token) {
-    updateSyncStatus('syncing');
-    pullFromCloud(true).then(remoteData => {
-      if (remoteData) {
+  // 拉取数据不需要 Token（公开仓库 raw URL）
+  // 推送数据才需要 Token
+  updateSyncStatus('syncing');
+  pullFromCloud(true).then(remoteData => {
+    if (remoteData) {
+      const localTasks = (appData.tasks || []).length;
+      if (localTasks === 0) {
+        // 本地原来没任务，现在有任务了 → 云端恢复的，刷新页面
+        window.location.reload();
+      } else {
         appData = remoteData;
         renderSidebar();
         renderContent();
       }
-    });
-  }
+    }
+  });
 }
 
 let appData = loadData();
