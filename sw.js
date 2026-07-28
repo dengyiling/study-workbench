@@ -1,6 +1,6 @@
-// Service Worker for 学习打卡工作台
-// 策略：网络优先（保证总是拿到最新版），离线时回退缓存
-const CACHE_NAME = 'study-workbench-v3';
+// Service Worker v4 - 学习打卡工作台
+// 策略：网络优先 + 温柔更新（不强制刷新，提示用户手动更新）
+const CACHE_NAME = 'study-workbench-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -17,10 +17,11 @@ self.addEventListener('install', event => {
       return cache.addAll(ASSETS_TO_CACHE).catch(() => {});
     })
   );
+  // skipWaiting 让新SW立即激活（但不强制刷新正在打开的页面）
   self.skipWaiting();
 });
 
-// Activate: 清除旧缓存，立即接管
+// Activate: 清除旧缓存，接管页面
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -29,9 +30,12 @@ self.addEventListener('activate', event => {
       );
     }).then(() => self.clients.claim())
   );
-  // 立即通知所有页面刷新
+  // 通知已打开的页面"有新版本可用"，但不强制刷新
+  // 页面收到消息后显示提示条，用户点击后才刷新
   self.clients.matchAll().then(clients => {
-    clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
+    clients.forEach(client => {
+      client.postMessage({ type: 'UPDATE_AVAILABLE' });
+    });
   });
 });
 
