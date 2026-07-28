@@ -1110,8 +1110,27 @@ async function pushToCloud() {
   try {
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     if (!data.tasks) return;
-    // 把 Token 也存入云端备份（方便删除App后自动恢复Token）
-    data._syncToken = cfg.token;
+    
+    // 安全保护：本地任务为空时，先检查云端是否有数据，有则先拉取而不是覆盖
+    if (data.tasks.length === 0) {
+      try {
+        const cloudResp = await fetch(CLOUD_RAW_URL + '?t=' + Date.now());
+        if (cloudResp.ok) {
+          const cloudData = await cloudResp.json();
+          if (cloudData.tasks && cloudData.tasks.length > 0) {
+            // 云端有数据，本地为空 → 拉取云端数据而不是推送空数据
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+            cfg.lastSync = cloudData._lastModified || Date.now();
+            saveCloudConfig(cfg);
+            updateSyncStatus('synced');
+            showToast('☁️ 已从云端恢复数据');
+            window.location.reload();
+            return;
+          }
+        }
+      } catch(e) {}
+    }
+    
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
     // Get existing sha
     let sha = '';
