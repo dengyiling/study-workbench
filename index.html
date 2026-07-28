@@ -2,6 +2,9 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <!-- PWA Meta Tags -->
 <meta name="theme-color" content="#4A90E2">
@@ -2020,6 +2023,14 @@ function renderSettingsView(container) {
       <button class="btn btn-danger" onclick="resetAllData()">重置所有数据</button>
       <span style="font-size:12px;color:var(--text-muted);margin-left:10px;">此操作不可恢复</span>
     </div>
+    
+    <div class="settings-section">
+      <h3><span class="icon">ℹ️</span> 关于</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">版本：<strong style="color:var(--primary);">v6</strong> — 修复导入按钮</p>
+      <button class="btn btn-primary" onclick="forceRefresh()" style="background:#4A90E2;">🔄 强制刷新更新</button>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:10px;">点击后重新加载最新版本</span>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">如果看到版本号不是 v6，说明需要刷新</p>
+    </div>
   `;
   setTimeout(() => updateSyncStatus(getCloudConfig().lastSync > 0 ? 'synced' : ''), 100);
 }
@@ -2232,7 +2243,7 @@ init();
 
 // ===== PWA 温柔更新机制 =====
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').then(reg => {
+  navigator.serviceWorker.register('sw.js?v=6').then(reg => {
     console.log('SW registered:', reg.scope);
     // 检测到新 SW 时，不自动刷新，等用户点击提示条
     reg.addEventListener('updatefound', () => {
@@ -2252,6 +2263,19 @@ if ('serviceWorker' in navigator) {
       showUpdateBanner();
     }
   });
+}
+
+function forceRefresh() {
+  // 保存数据后再刷新
+  saveData(appData);
+  // 清除所有缓存并强制刷新
+  if ('caches' in window) {
+    caches.keys().then(keys => {
+      keys.forEach(key => caches.delete(key));
+    });
+  }
+  // 使用 location.reload(true) 强制从服务器获取
+  window.location.reload(true);
 }
 
 function showUpdateBanner() {
