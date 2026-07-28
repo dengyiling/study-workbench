@@ -1,7 +1,7 @@
-// Service Worker v5 - 学习打卡工作台
+// Service Worker v6 - 学习打卡工作台
 // 策略：网络优先 + 温柔更新（不强制刷新，提示用户手动更新）
-// 修复：GitHub Pages 子路径下 start_url/scope/缓存路径全部用相对路径
-const CACHE_NAME = 'study-workbench-v5';
+// v6: 修复 PWA 导入按钮无响应（label + for 替代 JS click）
+const CACHE_NAME = 'study-workbench-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
