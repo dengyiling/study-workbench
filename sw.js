@@ -1,13 +1,14 @@
-// Service Worker v4 - 学习打卡工作台
+// Service Worker v5 - 学习打卡工作台
 // 策略：网络优先 + 温柔更新（不强制刷新，提示用户手动更新）
-const CACHE_NAME = 'study-workbench-v4';
+// 修复：GitHub Pages 子路径下 start_url/scope/缓存路径全部用相对路径
+const CACHE_NAME = 'study-workbench-v5';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-144.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './icons/icon-144.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 // Install: 预缓存核心资源
@@ -59,7 +60,7 @@ self.addEventListener('fetch', event => {
         if (cached) return cached;
         // 导航请求离线时回退到 index.html
         if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match('./index.html');
         }
         return new Response('', { status: 503, statusText: 'Offline' });
       });
