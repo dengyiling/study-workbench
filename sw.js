@@ -1,7 +1,7 @@
-// Service Worker v7 - 学习打卡工作台
+// Service Worker v8 - 学习打卡工作台
 // 策略：网络优先 + 温柔更新（不强制刷新，提示用户手动更新）
-// v7: 新增任务排列方式（默认/按数字/按字母/最近复习）
-const CACHE_NAME = 'study-workbench-v7';
+// v8: 新增任务暂停/开始功能（暂停任务不出现在日历）
+const CACHE_NAME = 'study-workbench-v8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
