@@ -348,6 +348,9 @@ body {
 .task-card.overdue::after { background: linear-gradient(180deg, var(--accent-coral), #FF8A80); }
 .task-card.due-today::after { background: linear-gradient(180deg, var(--accent-amber), #FFD54F); }
 .task-card.completed-all::after { background: linear-gradient(180deg, var(--accent-teal), #80CBC4); }
+.task-card.paused { opacity: 0.65; border-style: dashed; }
+.task-card.paused::after { background: var(--text-muted); }
+.task-card.paused .task-card-title { color: var(--text-muted); }
 
 .task-card-header {
   display: flex;
@@ -1329,6 +1332,7 @@ function getNextReview(task) {
 
 function getTaskDueStatus(task) {
   const today = todayStr();
+  if (task.paused) return { status: 'paused', label: '已暂停', days: 0 };
   const nextReview = getNextReview(task);
   if (!nextReview) return { status: 'completed-all', label: '全部完成 🎉', days: 0 };
   const diff = daysBetween(today, nextReview.date);
@@ -1349,12 +1353,13 @@ function getReviewDueOnDate(task, dateStr) {
 }
 
 function getTasksDueOnDate(dateStr) {
-  return appData.tasks.filter(t => getReviewDueOnDate(t, dateStr) !== null);
+  return appData.tasks.filter(t => !t.paused && getReviewDueOnDate(t, dateStr) !== null);
 }
 
 function getTasksDueToday() {
   const today = todayStr();
   return appData.tasks.filter(t => {
+    if (t.paused) return false;
     const nextReview = getNextReview(t);
     if (!nextReview) return false;
     return nextReview.date <= today;
@@ -1502,15 +1507,18 @@ function renderTodayView(container) {
   const sortMode = appData.sortMode || 'default';
   const applySort = (arr) => sortTasksByMode(arr, sortMode);
   
-  const dueTodayTasks = applySort(tasks.filter(t => {
+  const activeTasks = tasks.filter(t => !t.paused);
+  const pausedTasks = applySort(tasks.filter(t => t.paused));
+  
+  const dueTodayTasks = applySort(activeTasks.filter(t => {
     const nr = getNextReview(t);
     return nr && nr.date <= today;
   }));
-  const upcomingTasks = applySort(tasks.filter(t => {
+  const upcomingTasks = applySort(activeTasks.filter(t => {
     const nr = getNextReview(t);
     return nr && nr.date > today;
   }));
-  const completedTasks = applySort(tasks.filter(t => !getNextReview(t)));
+  const completedTasks = applySort(activeTasks.filter(t => !getNextReview(t)));
   
   const sortLabels = {
     default: '默认',
@@ -1557,6 +1565,16 @@ function renderTodayView(container) {
     </div>`;
     html += '<div class="task-grid">';
     completedTasks.forEach(t => html += renderTaskCard(t));
+    html += '</div>';
+  }
+  
+  if (pausedTasks.length > 0) {
+    html += `<div class="section-header" style="margin-top:24px">
+      <div class="section-title"><span class="icon">⏸</span> 已暂停</div>
+      <span class="section-count">${pausedTasks.length} 项 · 不计入日历</span>
+    </div>`;
+    html += '<div class="task-grid">';
+    pausedTasks.forEach(t => html += renderTaskCard(t));
     html += '</div>';
   }
   
@@ -1623,7 +1641,8 @@ function renderTaskCard(task) {
   const categoryLabel = categoryItem ? categoryItem.label : '未分类';
   
   let cardClass = '';
-  if (dueStatus.status === 'overdue') cardClass = 'overdue';
+  if (dueStatus.status === 'paused') cardClass = 'paused';
+  else if (dueStatus.status === 'overdue') cardClass = 'overdue';
   else if (dueStatus.status === 'due-today') cardClass = 'due-today';
   else if (dueStatus.status === 'completed-all') cardClass = 'completed-all';
   
@@ -1631,7 +1650,7 @@ function renderTaskCard(task) {
   if (dueStatus.status === 'overdue' || dueStatus.status === 'due-today') daysClass = 'urgent';
   else if (dueStatus.days > 0 && dueStatus.days <= 3) daysClass = 'normal';
   
-  const hasReviewToday = dueStatus.status === 'due-today' || dueStatus.status === 'overdue';
+  const hasReviewToday = !task.paused && (dueStatus.status === 'due-today' || dueStatus.status === 'overdue');
   
   // Progress dots
   let dotsHtml = '';
@@ -1652,7 +1671,7 @@ function renderTaskCard(task) {
       ${task.content ? `<div class="task-card-content">${escapeHtml(task.content)}</div>` : ''}
       <div class="task-card-meta">
         <div class="task-card-days ${daysClass}">
-          ${dueStatus.status === 'overdue' ? '⚠️' : dueStatus.status === 'due-today' ? '🔔' : dueStatus.status === 'completed-all' ? '✅' : '📅'}
+          ${dueStatus.status === 'overdue' ? '⚠️' : dueStatus.status === 'due-today' ? '🔔' : dueStatus.status === 'completed-all' ? '✅' : dueStatus.status === 'paused' ? '⏸' : '📅'}
           ${dueStatus.label}
         </div>
         <div class="task-card-progress">
@@ -1660,6 +1679,12 @@ function renderTaskCard(task) {
           <span>${completedCount}/${totalCount}</span>
         </div>
       </div>
+      ${task.paused ? `
+        <div style="margin-top:12px;">
+          <button class="btn-checkin todo-btn" style="background:var(--primary);color:#fff;" onclick="event.stopPropagation();resumeTask('${task.id}')">
+            ▶ 开始任务
+          </button>
+        </div>` : ''}
       ${hasReviewToday ? `
         <div style="margin-top:12px;">
           <button class="btn-checkin todo-btn" onclick="event.stopPropagation();checkinToday('${task.id}')">
@@ -1714,7 +1739,7 @@ function openTaskDetail(taskId) {
     else if (isPast) { statusClass = 'todo'; statusText = '待打卡'; }
     else if (isToday) { statusClass = 'todo'; statusText = '今天'; }
     
-    const canCheckin = !r.completed && r.date <= today;
+    const canCheckin = !task.paused && !r.completed && r.date <= today;
     
     return `
       <div class="review-item">
@@ -1751,11 +1776,14 @@ function openTaskDetail(taskId) {
       <input type="date" id="editStartDate" value="${task.startDate}">
     </div>
     <div class="review-schedule">
-      <h4>📅 复习计划</h4>
+      <h4>📅 复习计划 ${task.paused ? '<span style="font-size:12px;font-weight:400;color:var(--text-muted);">（已暂停，不计时）</span>' : ''}</h4>
       ${scheduleHtml}
     </div>
     <div class="modal-actions">
       <button class="btn btn-danger" onclick="deleteTask('${task.id}')">删除任务</button>
+      ${task.paused 
+        ? `<button class="btn btn-primary" style="background:var(--primary);" onclick="resumeTask('${task.id}')">▶ 开始任务</button>`
+        : `<button class="btn btn-secondary" onclick="pauseTask('${task.id}')">⏸ 暂停任务</button>`}
       <div style="flex:1"></div>
       <button class="btn btn-secondary" onclick="closeModalDirect()">取消</button>
       <button class="btn btn-primary" onclick="saveTaskDetail('${task.id}')">保存</button>
@@ -1826,6 +1854,28 @@ function deleteTask(taskId) {
   showToast('任务已删除');
 }
 
+// ===== PAUSE / RESUME =====
+function pauseTask(taskId) {
+  const task = appData.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  task.paused = true;
+  saveData(appData);
+  openTaskDetail(taskId);
+  renderContent();
+  showToast('⏸ 任务已暂停，不再出现在日历和复习提醒中');
+}
+
+function resumeTask(taskId) {
+  const task = appData.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  task.paused = false;
+  saveData(appData);
+  openTaskDetail(taskId);
+  renderContent();
+  showConfetti();
+  showToast('▶ 任务已开始！按遗忘曲线恢复复习计划');
+}
+
 // ===== NEW TASK MODAL =====
 function openNewTaskModal() {
   const modal = document.getElementById('modalContent');
@@ -1850,6 +1900,12 @@ function openNewTaskModal() {
     <div class="modal-field">
       <label>开始日期 *</label>
       <input type="date" id="newStartDate" value="${todayStr()}">
+    </div>
+    <div class="modal-field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;">
+        <input type="checkbox" id="newPaused" style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
+        <span>⏸ 创建后先暂停（不进入复习计划，不出现在日历）</span>
+      </label>
     </div>
     <div style="padding:12px;background:var(--primary-light);border-radius:var(--radius-sm);margin-bottom:8px;font-size:13px;color:var(--text-secondary);">
       💡 基于艾宾浩斯遗忘曲线，任务将在第 <b>1、2、4、7、15、30、60、180</b> 天自动安排复习打卡
@@ -1879,6 +1935,7 @@ function createTask() {
     content,
     category,
     startDate,
+    paused: document.getElementById('newPaused').checked,
     reviews: getReviewSchedule(startDate),
     createdAt: Date.now()
   };
@@ -1892,7 +1949,7 @@ function createTask() {
   else renderContent();
   renderSidebar();
   showConfetti();
-  showToast('🎉 任务创建成功！按遗忘曲线自动安排复习');
+  showToast(task.paused ? '任务已创建（已暂停，点「开始任务」启用）' : '🎉 任务创建成功！按遗忘曲线自动安排复习');
 }
 
 // ===== CALENDAR VIEW =====
@@ -1914,6 +1971,7 @@ function renderCalendarView(container) {
   const lastDate = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
   
   appData.tasks.forEach(task => {
+    if (task.paused) return;
     task.reviews.forEach(r => {
       if (!r.completed && r.date >= firstDate && r.date <= lastDate) {
         taskCountMap[r.date] = (taskCountMap[r.date] || 0) + 1;
@@ -2135,10 +2193,10 @@ function renderSettingsView(container) {
     
     <div class="settings-section">
       <h3><span class="icon">ℹ️</span> 关于</h3>
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">版本：<strong style="color:var(--primary);">v7</strong> — 新增排列方式</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">版本：<strong style="color:var(--primary);">v8</strong> — 新增任务暂停/开始</p>
       <button class="btn btn-primary" onclick="forceRefresh()" style="background:#4A90E2;">🔄 强制刷新更新</button>
       <span style="font-size:12px;color:var(--text-muted);margin-left:10px;">点击后重新加载最新版本</span>
-      <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">如果看到版本号不是 v7，说明需要刷新</p>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">如果看到版本号不是 v8，说明需要刷新</p>
     </div>
   `;
   setTimeout(() => updateSyncStatus(getCloudConfig().lastSync > 0 ? 'synced' : ''), 100);
@@ -2352,7 +2410,7 @@ init();
 
 // ===== PWA 温柔更新机制 =====
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=7').then(reg => {
+  navigator.serviceWorker.register('sw.js?v=8').then(reg => {
     console.log('SW registered:', reg.scope);
     // 检测到新 SW 时，不自动刷新，等用户点击提示条
     reg.addEventListener('updatefound', () => {
