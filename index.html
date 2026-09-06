@@ -446,6 +446,52 @@ body {
   font-weight: 500;
 }
 
+/* ===== Sort Bar ===== */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.sort-bar-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sort-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sort-btn {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.sort-btn:active { transform: scale(0.96); }
+.sort-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px var(--primary-glow);
+}
+
 /* ===== Calendar View ===== */
 .calendar-container {
   background: var(--bg-card);
@@ -1453,17 +1499,36 @@ function renderTodayView(container) {
     return (order[sa.status] ?? 4) - (order[sb.status] ?? 4);
   });
   
-  const dueTodayTasks = tasks.filter(t => {
+  const sortMode = appData.sortMode || 'default';
+  const applySort = (arr) => sortTasksByMode(arr, sortMode);
+  
+  const dueTodayTasks = applySort(tasks.filter(t => {
     const nr = getNextReview(t);
     return nr && nr.date <= today;
-  });
-  const upcomingTasks = tasks.filter(t => {
+  }));
+  const upcomingTasks = applySort(tasks.filter(t => {
     const nr = getNextReview(t);
     return nr && nr.date > today;
-  });
-  const completedTasks = tasks.filter(t => !getNextReview(t));
+  }));
+  const completedTasks = applySort(tasks.filter(t => !getNextReview(t)));
   
-  let html = '';
+  const sortLabels = {
+    default: '默认',
+    number: '按数字',
+    letter: '按字母',
+    review: '最近复习'
+  };
+  
+  let html = `
+    <div class="sort-bar">
+      <span class="sort-bar-label">🔀 排列方式</span>
+      <div class="sort-options">
+        ${Object.keys(sortLabels).map(mode => `
+          <button class="sort-btn ${sortMode === mode ? 'active' : ''}" 
+                  onclick="setSortMode('${mode}')">${sortLabels[mode]}</button>
+        `).join('')}
+      </div>
+    </div>`;
   
   if (dueTodayTasks.length > 0) {
     html += `<div class="section-header">
@@ -1504,6 +1569,50 @@ function renderTodayView(container) {
   }
   
   container.innerHTML = html;
+}
+
+// ===== SORTING =====
+function extractTitleNumber(title) {
+  const m = String(title).match(/\d+/);
+  return m ? parseInt(m[0], 10) : null;
+}
+
+function sortTasksByMode(tasks, mode) {
+  if (mode === 'default') return [...tasks];
+  const arr = [...tasks];
+  if (mode === 'number') {
+    // 按标题中的数字升序（如"内科2"排在"内科10"前面），无数字的排最后
+    arr.sort((a, b) => {
+      const na = extractTitleNumber(a.title);
+      const nb = extractTitleNumber(b.title);
+      if (na === null && nb === null) return String(a.title).localeCompare(String(b.title), 'zh-Hans-CN');
+      if (na === null) return 1;
+      if (nb === null) return -1;
+      if (na !== nb) return na - nb;
+      return String(a.title).localeCompare(String(b.title), 'zh-Hans-CN');
+    });
+  } else if (mode === 'letter') {
+    // 按名称字母/拼音排序（A-Z）
+    arr.sort((a, b) => String(a.title).localeCompare(String(b.title), 'zh-Hans-CN-u-co-pinyin'));
+  } else if (mode === 'review') {
+    // 按最近需要复习的时间排序（最近的排前面），已完成的排最后
+    arr.sort((a, b) => {
+      const ra = getNextReview(a);
+      const rb = getNextReview(b);
+      if (!ra && !rb) return 0;
+      if (!ra) return 1;
+      if (!rb) return -1;
+      if (ra.date !== rb.date) return ra.date < rb.date ? -1 : 1;
+      return String(a.title).localeCompare(String(b.title), 'zh-Hans-CN');
+    });
+  }
+  return arr;
+}
+
+function setSortMode(mode) {
+  appData.sortMode = mode;
+  saveData(appData);
+  renderTodayView(document.getElementById('contentArea'));
 }
 
 function renderTaskCard(task) {
@@ -2026,10 +2135,10 @@ function renderSettingsView(container) {
     
     <div class="settings-section">
       <h3><span class="icon">ℹ️</span> 关于</h3>
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">版本：<strong style="color:var(--primary);">v6</strong> — 修复导入按钮</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">版本：<strong style="color:var(--primary);">v7</strong> — 新增排列方式</p>
       <button class="btn btn-primary" onclick="forceRefresh()" style="background:#4A90E2;">🔄 强制刷新更新</button>
       <span style="font-size:12px;color:var(--text-muted);margin-left:10px;">点击后重新加载最新版本</span>
-      <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">如果看到版本号不是 v6，说明需要刷新</p>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">如果看到版本号不是 v7，说明需要刷新</p>
     </div>
   `;
   setTimeout(() => updateSyncStatus(getCloudConfig().lastSync > 0 ? 'synced' : ''), 100);
@@ -2243,7 +2352,7 @@ init();
 
 // ===== PWA 温柔更新机制 =====
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=6').then(reg => {
+  navigator.serviceWorker.register('sw.js?v=7').then(reg => {
     console.log('SW registered:', reg.scope);
     // 检测到新 SW 时，不自动刷新，等用户点击提示条
     reg.addEventListener('updatefound', () => {
