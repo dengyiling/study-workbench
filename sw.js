@@ -1,7 +1,7 @@
-// Service Worker v6 - 学习打卡工作台
+// Service Worker v7 - 学习打卡工作台
 // 策略：网络优先 + 温柔更新（不强制刷新，提示用户手动更新）
-// v6: 修复 PWA 导入按钮无响应（label + for 替代 JS click）
-const CACHE_NAME = 'study-workbench-v6';
+// v7: 新增任务排列方式（默认/按数字/按字母/最近复习）
+const CACHE_NAME = 'study-workbench-v7';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
