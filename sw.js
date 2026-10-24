@@ -1,7 +1,7 @@
-// Service Worker v8 - 学习打卡工作台
+// Service Worker v9 - 学习打卡工作台
 // 策略：网络优先 + 温柔更新（不强制刷新，提示用户手动更新）
-// v8: 新增任务暂停/开始功能（暂停任务不出现在日历）
-const CACHE_NAME = 'study-workbench-v8';
+// v9: 一天的起点改为凌晨 4 点（0-4 点仍算昨天）
+const CACHE_NAME = 'study-workbench-v9';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
