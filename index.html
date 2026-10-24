@@ -1287,7 +1287,19 @@ if (!appData.navItems || !appData.navItems.length) {
 }
 
 // ===== HELPERS =====
+// 一天的起点：凌晨 4 点。凌晨 0:00-4:00 之间仍算作「昨天」，
+// 到 4:00 才翻到新的一天（熬夜学习不会被提前催打卡）
+const DAY_START_HOUR = 4;
+
+// 返回「逻辑日期」：当前时间往前推 DAY_START_HOUR 小时后的日期
 function todayStr() {
+  const d = new Date();
+  d.setHours(d.getHours() - DAY_START_HOUR);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// 自然日历日期（用于导出文件名等真实日期场景）
+function realTodayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
@@ -1956,7 +1968,7 @@ function createTask() {
 let calendarYear, calendarMonth, selectedCalendarDay;
 
 function renderCalendarView(container) {
-  const now = new Date();
+  const now = new Date(todayStr() + 'T12:00:00'); // 用「逻辑今天」定位月份
   if (!calendarYear) { calendarYear = now.getFullYear(); calendarMonth = now.getMonth(); }
   
   const firstDay = new Date(calendarYear, calendarMonth, 1);
@@ -2193,10 +2205,11 @@ function renderSettingsView(container) {
     
     <div class="settings-section">
       <h3><span class="icon">ℹ️</span> 关于</h3>
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">版本：<strong style="color:var(--primary);">v8</strong> — 新增任务暂停/开始</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">版本：<strong style="color:var(--primary);">v9</strong> — 凌晨 4 点才算新的一天</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">🌙 每天凌晨 <strong>4:00</strong> 切换为新的一天。凌晨 0–4 点之间仍算作昨天，熬夜学习不会被提前催打卡。</p>
       <button class="btn btn-primary" onclick="forceRefresh()" style="background:#4A90E2;">🔄 强制刷新更新</button>
       <span style="font-size:12px;color:var(--text-muted);margin-left:10px;">点击后重新加载最新版本</span>
-      <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">如果看到版本号不是 v8，说明需要刷新</p>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">如果看到版本号不是 v9，说明需要刷新</p>
     </div>
   `;
   setTimeout(() => updateSyncStatus(getCloudConfig().lastSync > 0 ? 'synced' : ''), 100);
@@ -2283,8 +2296,7 @@ function exportData() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const dateStr = realTodayStr();
   a.href = url;
   a.download = `学习打卡备份_${dateStr}.json`;
   a.click();
@@ -2404,13 +2416,30 @@ function init() {
   
   renderContent();
   checkCloudOnStartup();
+  startDayRolloverWatcher();
+}
+
+// App 长时间开着时，跨过凌晨 4 点后自动刷新为新的一天
+let _lastLogicalDay = null;
+function startDayRolloverWatcher() {
+  _lastLogicalDay = todayStr();
+  setInterval(() => {
+    const now = todayStr();
+    if (now !== _lastLogicalDay) {
+      _lastLogicalDay = now;
+      console.log('新的一天到了：', now);
+      renderContent();
+      renderSidebar();
+      showToast('🌅 新的一天开始了，任务已更新');
+    }
+  }, 60 * 1000); // 每分钟检查一次
 }
 
 init();
 
 // ===== PWA 温柔更新机制 =====
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=8').then(reg => {
+  navigator.serviceWorker.register('sw.js?v=9').then(reg => {
     console.log('SW registered:', reg.scope);
     // 检测到新 SW 时，不自动刷新，等用户点击提示条
     reg.addEventListener('updatefound', () => {
